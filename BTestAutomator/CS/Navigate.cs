@@ -5,13 +5,12 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
-using Selenium.Core;
+using BTestAutomator.Core;
 
-namespace Selenium
+namespace BTestAutomator
 {
     public static class Navigate
-    {
-     
+    { 
         public static void ToTab(IContext context, string tab) {
             IList<IWebElement> elements; 
             elements = context.Driver.FindElements(By.XPath("//div[@id='ctl00_ContentPlaceHolder1_radTS_Surveys']//li")); 
@@ -20,10 +19,7 @@ namespace Selenium
                 {
                     element.Click();
                     break;
-                } 
-            //  elements = context.Driver.FindElements(By.CssSelector("a[id$='_hl_Launch']"));
-            //  if (elements.Count > 0) 
-            //       context.Driver.FindElement(By.CssSelector("a[id$='_hl_Launch']")).Click(); 
+                }  
         }
     }
 }

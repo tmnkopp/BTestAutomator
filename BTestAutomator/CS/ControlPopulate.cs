@@ -5,9 +5,9 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
-using Selenium.Core;
+using BTestAutomator.Core;
 
-namespace Selenium
+namespace BTestAutomator
 {
     public static class ControlPopulate
     {
@@ -80,8 +80,7 @@ namespace Selenium
         {
             IWebElement edit = driver.FindElement(By.XPath("//input[contains( @id , '_btnEdit')]"));
             edit.Click();
-            System.Threading.Thread.Sleep(100); 
-
+            System.Threading.Thread.Sleep(100);  
             IList<IWebElement> CBNumerics = driver.FindElements(By.XPath("//input[contains(@id, 'CBNumeric')]"));
             foreach (IWebElement input in CBNumerics)
                 Type(input, "0");
@@ -90,12 +89,10 @@ namespace Selenium
                 Type(input, "50"); 
             IList<IWebElement> frequency = driver.FindElements(By.XPath("//input[contains(@id, 'CBFrequency1_tb_frequency')]"));
             foreach (IWebElement input in frequency)
-                Type(input, "5"); 
-
+                Type(input, "5");  
             IList<IWebElement> range = driver.FindElements(By.XPath("//select[contains(@id, '_CBFrequency1_tb_range')]"));
             foreach (IWebElement input in range)
-                Select(input, 1);
-
+                Select(input, 1); 
             System.Threading.Thread.Sleep(100);
             IWebElement save = driver.FindElement(By.XPath("//input[contains( @id , '_btnSave')]"));
             save.Click();

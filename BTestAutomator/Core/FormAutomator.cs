@@ -3,7 +3,7 @@ using OpenQA.Selenium.Chrome;
 using System;
 using System.Collections.Generic;
 
-namespace Selenium.Core
+namespace BTestAutomator.Core
 {
 
     public abstract class BaseElementSetter {
