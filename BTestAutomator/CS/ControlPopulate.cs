@@ -11,50 +11,71 @@ namespace BTestAutomator
 {
     public static class ControlPopulate
     {
+        public static void RadDDL(IContext context, string DDL, string Item)
+        {
+            var ddl = context.Driver.FindElement(By.CssSelector($"*[id$='{DDL}']"));
+            ddl.Click();
+            System.Threading.Thread.Sleep(100);
+            ddl = context.Driver.FindElement(By.CssSelector($"div[id*='{DDL}_DropDown'] .rddlPopup"));
+            var report = ddl.FindElement(By.XPath($"//li[contains(string(), '{Item}')]"))
+                ?? ddl.FindElement(By.XPath($"//span[contains(string(), '{Item}')]")); 
+
+            report.Click();
+        }
+        public static void RadDDL(IContext context, string DDL, int item = 1)
+        {
+            var ddl = context.Driver.FindElement(By.CssSelector($"*[id$='{DDL}']"));
+            ddl.Click();
+            System.Threading.Thread.Sleep(200);
+            ddl = context.Driver.FindElement(By.CssSelector($"div[id*='{DDL}_DropDown'] .rddlPopup"));
+            var report = ddl.FindElements(By.CssSelector($"li.rddlItem"))[item];
+            report.Click();
+        }
+
+
         public static void GenericForm(IContext context)
         {
             IList<IWebElement> inputs;
 
             inputs = context.Driver.FindElements(By.CssSelector("input[id*='Numeric']"));
-            foreach (IWebElement input in inputs)  {
+            foreach (IWebElement input in inputs) {
                 if (input.GetAttribute("value") == "" && input.GetAttribute("type") != "hidden")
                     input.SendKeys("0");
             }
-            inputs = context.Driver.FindElements(By.CssSelector("input[id*='CBPercentage']")); 
+            inputs = context.Driver.FindElements(By.CssSelector("input[id*='CBPercentage']"));
             foreach (IWebElement input in inputs)
                 if (input.GetAttribute("value") == "" && input.GetAttribute("type") != "hidden")
                     input.SendKeys("50");
 
             inputs = context.Driver.FindElements(By.CssSelector("textarea"));
             foreach (IWebElement input in inputs) {
-                if (input.Text=="" )
-                    input.SendKeys(input.GetAttribute("name"));
+                if (input.Text == "")
+                    input.SendKeys(input.GetAttribute("name").Replace("$", ". " ));
             }
             inputs = context.Driver.FindElements(By.CssSelector("input[id*='date']"));
             foreach (IWebElement input in inputs)
             {
-                Random rnd = new Random(); 
                 if (input.GetAttribute("value") == "" && input.GetAttribute("type") != "hidden")
-                    input.SendKeys($"12/{rnd.Next(2, 27).ToString()}/2020");
+                    input.SendKeys($"{DateTime.Now.ToShortDateString()}");
             }
             inputs = context.Driver.FindElements(By.CssSelector("input[type='text']"));
             foreach (IWebElement input in inputs) {
                 if (input.GetAttribute("value") == "" && input.GetAttribute("type") != "hidden") {
-                    try  {
+                    try {
                         input.SendKeys(input.TagName);
-                    } catch (Exception e)    {
-                        Console.Write($"{e.Source} {e.Message}"); 
+                    } catch (Exception e) {
+                        Console.Write($"{e.Source} {e.Message}");
                     }
-                }    
+                }
             }
-            
+
             inputs = context.Driver.FindElements(By.CssSelector(".RadDropDownList_Default"));
             foreach (IWebElement input in inputs)
             {
-                System.Threading.Thread.Sleep(200); 
-                try  {
+                System.Threading.Thread.Sleep(200);
+                try {
                     input.Click();
-                }  catch (Exception e)  {
+                } catch (Exception e) {
                     Console.Write($"{e.Source} {e.Message}");
                     return;
                 }
@@ -62,19 +83,32 @@ namespace BTestAutomator
                 if (rddlItems.Count > 1)
                 {
                     Random rnd = new Random();
-                    int index = rnd.Next(1, rddlItems.Count-1);
-                    try   {
+                    int index = rnd.Next(1, rddlItems.Count - 1);
+                    try {
                         rddlItems[index].Click();
-                    }   catch (Exception e)  {
+                    } catch (Exception e) {
                         Console.Write($"{index.ToString()}");
                         Console.Write($"{e.Source} {e.Message}");
-                    } 
-                } 
+                    }
+                }
             }
-            //inputs = context.Driver.FindElements(By.CssSelector(".RadRadioButtonList_Default .RadRadioButton:first-child"));
-            //foreach (IWebElement input in inputs) 
-            //    input.Click();  
- 
+
+            inputs = context.Driver.FindElements(By.CssSelector(".RadComboBox input[id$='_Input']"));
+            foreach (IWebElement input in inputs) 
+            {
+                input.Click();
+                var chk = context.Driver.FindElements(By.CssSelector($".rcbList li"))[1]
+                    ?? context.Driver.FindElements(By.CssSelector($".rcbList li"))[2]
+                    ?? context.Driver.FindElements(By.CssSelector($".rcbList .rcbItem"))[1]
+                    ?? context.Driver.FindElements(By.CssSelector($".rcbList .rcbItem"))[2] 
+                    ;
+                try   {
+                    chk.Click();
+                }
+                catch (Exception e)   {
+                    Console.WriteLine($"{e.Source} {e.Message}");
+                } 
+            }  
         }
         public static void Form(ChromeDriver driver)
         {
@@ -96,7 +130,7 @@ namespace BTestAutomator
             System.Threading.Thread.Sleep(100);
             IWebElement save = driver.FindElement(By.XPath("//input[contains( @id , '_btnSave')]"));
             save.Click();
-            System.Threading.Thread.Sleep(200);
+            System.Threading.Thread.Sleep(100);
 
         }
          public static void Grid(ChromeDriver driver) {

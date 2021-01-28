@@ -1,9 +1,13 @@
-﻿using OpenQA.Selenium;
+﻿using MongoDB.Bson;
+using MongoDB.Driver;
+using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
+using System.Xml;
 
 namespace BTestAutomator.Core
 {
@@ -25,42 +29,95 @@ namespace BTestAutomator.Core
             _desc = (string.IsNullOrEmpty(Description)) ? "CS Issue": Description;
         }
         public void Automate(IContext context)
-        {
-            context.Connect(new Login("dayman"));
+        { 
             context.Click("create_link").Pause()
                 .SendKeys("summary", _desc)
                 .Click("assign-to-me-trigger");
         }
-    }
+    } 
     [AutomatorMeta(ContextName: ContextName.JIRA)]
-    public class JiraConnect : IAutomator
-    {
-        public JiraConnect()
-        {
-        }
+    public class JiraList : IAutomator
+    {  
         public void Automate(IContext context)
-        {
-            context.Connect(new Login("dayman")); 
-        }
-    }
-
-    [AutomatorMeta(ContextName: ContextName.JIRA)]
-    public class JiraLog : IAutomator
-    { 
-        public JiraLog( )
-        { 
-        }
-        public void Automate(IContext context)
-        { 
-            context.Driver.Navigate().GoToUrl("https://dayman.cyber-balance.com/jira/secure/Dashboard.jspa?selectPageId=12340");
-            Dictionary<string, string> issues = new Dictionary<string, string>();
-            foreach (var item in context.Driver.FindElements(By.CssSelector("*[id$='gadget-15990-renderbox'] .issue-link")))
+        {   
+            foreach (var item in context.Driver.FindElements(By.CssSelector("*[id$='gadget-15990-renderbox'] .summary .issue-link")))
             {
-                Console.Write(item ); 
-            }
-
+                Console.WriteLine($"{ item.GetAttribute("data-issue-key") } { item.Text }" ); 
+            } 
         }
     }
+    [AutomatorMeta(ContextName: ContextName.JIRA)]
+    public class JiraLog: IAutomator
+    {
+        private string _issuekey = null;
+        public JiraLog()   {  }
+        public void Automate(IContext context)
+        {
+            new JiraList().Automate(context);
+            Console.Write($":");
+            _issuekey = Console.ReadLine(); 
+            context.Driver.FindElement(By.CssSelector($"tr[data-issuekey$='{_issuekey}'] .issuekey a")).Click(); 
+            System.Threading.Thread.Sleep(500); 
+            context.Driver.FindElement(By.CssSelector($"*[id*='opsbar-operations_more']")).Click();
+            System.Threading.Thread.Sleep(500);
+            context.Driver.FindElement(By.CssSelector($"*[class*='issueaction-log-work'] a")).Click();
+            System.Threading.Thread.Sleep(500);
+            context.Driver.FindElement(By.CssSelector($"*[id*='log-work-time-logged']")).SendKeys("10m");
+            //context.Driver.FindElement(By.CssSelector($"*[id*='log-work-submit']")).Click(); 
+        }
+    }
+
+    [AutomatorMeta(ContextName: ContextName.JIRA)]
+    public class JiraExport : IAutomator
+    { 
+        public JiraExport() { }
+        public void Automate(IContext context)
+        { 
+            var client = new MongoClient("mongodb://localhost:27017");
+            var database = client.GetDatabase("jira");
+            var collection = database.GetCollection<BsonDocument>("issues");
+
+            List<string> issues = new List<string>();  
+            foreach (var item in context.Driver.FindElements(By.CssSelector("*[id$='gadget-15990-renderbox'] .summary .issue-link")))
+                issues.Add(item.GetAttribute("data-issue-key")); 
+
+            foreach (var _issuekey in issues)
+            { 
+                try  {
+                    context.Driver.Navigate().GoToUrl($"https://dayman.cyber-balance.com/jira/si/jira.issueviews:issue-xml/{_issuekey}/{_issuekey}.xml");
+                    var src = context.Driver.PageSource;
+                    src = src.Substring(src.IndexOf("<item>"), src.IndexOf("</item>") - src.IndexOf("<item>")) + "</item>";
+                    XmlDocument xmldoc = new XmlDocument();
+                    xmldoc.LoadXml(src);
+                    var title = xmldoc.SelectSingleNode("//title")?.InnerText.Trim();
+                    var labels = xmldoc.SelectSingleNode("//labels")?.InnerText.Trim();
+                    var summary = xmldoc.SelectSingleNode("//summary")?.InnerText.Trim();
+                    var version = xmldoc.SelectSingleNode("//version")?.InnerText.Trim();
+                    var link = xmldoc.SelectSingleNode("//link")?.InnerText.Trim();
+                    Console.WriteLine($"{ _issuekey } {title}");
+                    var post = new BsonDocument  {
+                        {"issuekey" , _issuekey},
+                        {"title" , title ?? ""},
+                        {"link" , link ?? ""},
+                        {"labels" , labels  ?? ""},
+                        {"version" , version ?? ""},
+                        {"summary" , summary ?? ""},
+                        {"content" , src  ?? ""}
+                };
+                    collection.ReplaceOneAsync(
+                        filter: new BsonDocument("issuekey", _issuekey),
+                        options: new ReplaceOptions { IsUpsert = true },
+                        replacement: post  );
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"{e.Source} { e.Message}");
+                } 
+            } 
+        }
+    }
+
+    //data-issuekey="CS-7900"
     [AutomatorMeta(ContextName: ContextName.CSLocal)]
     public class AdminUsers : IAutomator
     {
@@ -177,11 +234,39 @@ namespace BTestAutomator.Core
         }
     }
     [AutomatorMeta(ContextName: ContextName.CSLocal)]
+    public class AdminEditFinding : IAutomator
+    {
+        public void Automate(IContext context)
+        {
+            context.Connect(new Login("csadmin"));
+            Navigate.ToTab(context, "BOD 18-02 Remediation Plans");
+            context.Driver.FindElement(By.CssSelector("a[id$='ctl20_lnkAdmin']")).Click();
+            context.Driver.FindElement(By.CssSelector("button[id$='BtnExpandColumn']")).Click();
+            context.Driver.FindElement(By.CssSelector(".rgDetailTable input[id$='_EditButton']")).Click();
+            ControlPopulate.GenericForm(context);
+        }
+    }
+    [AutomatorMeta(ContextName: ContextName.CSLocal)]
+    public class AdminCQMilestones : IAutomator
+    {
+        public void Automate(IContext context)
+        {
+            context.Connect(new Login("csadmin")); 
+            context.Driver.Navigate().GoToUrl("https://localhost/Reports/CustomQueries.aspx");
+            ControlPopulate.RadDDL(context, "ddl_ReportList", "HVA Activities");
+            ControlPopulate.RadDDL(context, "ddl_Agency", "Justice");
+            ControlPopulate.RadDDL(context, "ddl_Bureau", 1);
+            ControlPopulate.RadDDL(context, "ddl_HVA", 1);
+            ControlPopulate.RadDDL(context, "ddl_POAM", 1);
+            context.Click("ExportScreen_input"); 
+        }
+    }
+    [AutomatorMeta(ContextName: ContextName.CSLocal)]
     public class UserEditPoam : BaseAutomator, IAutomator
     {
         public void Automate(IContext context)
         {
-            context.Connect(new Login("doj"));
+            context.Connect(new Login("epa"));
             Navigate.ToTab(context, "BOD 18-02 Remediation Plans");
             context.Driver.FindElement(By.CssSelector("a[id$='_hl_Launch']")).Click();
             System.Threading.Thread.Sleep(2400);
@@ -193,12 +278,28 @@ namespace BTestAutomator.Core
             sections.SelectByIndex(1);
             context.Driver.FindElement(By.CssSelector("input[id$='AddNewMilestone_input']")).Click();
 
+            //_GECBtnExpandColumn
+
             ControlPopulate.GenericForm(context);
             try  {
                 context.Driver.FindElement(By.CssSelector("input[id$='_PerformInsertButton']")).Click();
             } catch (Exception e) {
-                System.Console.WriteLine($"{e.Source} {e.Message}");
-            } 
+                System.Console.WriteLine($"{e.Source} {e.Message}"); 
+            }
+            Console.WriteLine("add activity  y/n:");
+            if (Console.ReadLine() == "n") return;
+
+            sections = new SelectElement(context.Driver.FindElement(By.CssSelector("select[id$='ddl_Sections']")));
+            sections.SelectByIndex(1);
+            context.Driver.FindElement(By.CssSelector("*[id$='_GECBtnExpandColumn']")).Click();
+            context.Driver.FindElement(By.CssSelector("*[id$='_AddNewActivity_input']")).Click();
+            ControlPopulate.GenericForm(context);
+
+            Console.WriteLine("add report  y/n:");
+            if (Console.ReadLine() == "n") return; 
+            sections = new SelectElement(context.Driver.FindElement(By.CssSelector("select[id$='ddl_Sections']")));
+            sections.SelectByIndex(2);
+            ControlPopulate.GenericForm(context);
         }
     }
 }

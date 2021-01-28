@@ -126,7 +126,8 @@ namespace BTestAutomator.Core
     public class JIRA : BaseContext, IContext
     { 
         public JIRA(): base()
-        {   
+        {
+            Connect(new Login("dayman"));
         } 
         public void Connect(Login login)
         {
